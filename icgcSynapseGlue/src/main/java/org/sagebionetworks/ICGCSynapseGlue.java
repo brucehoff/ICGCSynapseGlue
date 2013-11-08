@@ -39,14 +39,16 @@ import com.sshtools.j2ssh.configuration.ConfigurationLoader;
 /**
  * TODO send email notification for any additions, removals or errors
  */
-public class ICGCSynapseGlue {
-	private static final boolean EXECUTE = false;
-	
+public class ICGCSynapseGlue {	
 	  public static void main( String[] args) throws SynapseException, UnsupportedEncodingException {
+		  Boolean execute = new Boolean(System.getProperty("EXECUTE"));
+		  
 		  String synapseUserName = System.getenv("SYNAPSE_USERNAME");
 		  String synapsePassword = System.getenv("SYNAPSE_PASSWORD");
 		  String signupTeamId = System.getenv("SIGNUP_TEAM_ID");
 		  String approveTeamId = System.getenv("APPROVE_TEAM_ID");
+		  String emailFrom = System.getenv("SMTP_FROM");
+		  String emailTo = System.getenv("SMTP_TO");
 		  
 		  // get the emails from DACO
 		  List<String> dacoApproved = getDACOEmails();
@@ -54,7 +56,7 @@ public class ICGCSynapseGlue {
 		  System.out.println("Read "+dacoApproved.size()+" emails from DACO");
 	        // sync the team membership with the list from DACO
 	        // i.e. the team membership should be exactly those users who
-	        // (1) are in the sign-up team (2) are in the DACO list
+	        // (1) are in the sign-up team and (2) are in the DACO list
 	        
 	        SynapseClient synapseClient = createSynapseClient();
 	        synapseClient.login(synapseUserName, synapsePassword);
@@ -88,10 +90,10 @@ public class ICGCSynapseGlue {
 	        	if (memberToRemove==null) throw new IllegalStateException();
 	        	if (!memberToRemove.getIsAdmin()) {
 	        		removeCount++;
-	        		if (EXECUTE) synapseClient.removeTeamMember(approveTeamId, memberToRemove.getMember().getOwnerId());
+	        		if (execute) synapseClient.removeTeamMember(approveTeamId, memberToRemove.getMember().getOwnerId());
 	        	}
 	        }
-	        if (EXECUTE) {
+	        if (execute) {
 	        	System.out.println("Done removing "+usersToRemove.size());
 	        } else {
 	        	System.out.println("Skipping removing "+removeCount+" because EXECUTE=false");
@@ -102,16 +104,32 @@ public class ICGCSynapseGlue {
 	        	UserGroupHeaderResponsePage page = synapseClient.getUserGroupHeadersByPrefix(email);
 				List<UserGroupHeader> ughs = page.getChildren();
 				if (ughs.size()!=1) throw new RuntimeException("Unexpected number of results "+ughs.size());
-				String idToAdd = ughs.get(0).getOwnerId();
-				if (EXECUTE) synapseClient.addTeamMember(approveTeamId, idToAdd);
+				UserGroupHeader ugh = ughs.get(0);
+				String displayName = ugh.getDisplayName();
+				String idToAdd = ugh.getOwnerId();
+				if (execute) {
+					synapseClient.addTeamMember(approveTeamId, idToAdd);
+					// now notify them
+					AWSSendEmail.sendEmail(emailFrom, emailTo, null,
+							"ICGC-TCGA DREAM Mutation Calling challenge",
+							"Dear "+displayName+",\n"+
+							"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
+							"For further information please see https://www.synapse.org/#!Synapse:syn312572."
+							);
+				}
 	        }
-	        if (EXECUTE) {
+	        if (execute) {
 	        	System.out.println("Done adding "+usersToAdd.size());
 	        } else {
 	        	System.out.println("Skipping adding "+usersToAdd.size()+" because EXECUTE=false");
-	        	
 	        }
 	        
+		  if (execute && (usersToAdd.size()>0 || removeCount>0)) {
+			  String message = "Added "+usersToAdd.size()+" and removed "+removeCount+" users from Team "+approveTeamId;
+			  AWSSendEmail.sendEmail(emailFrom, emailTo, 
+						null, "GMC Challenge approval", 
+						message);
+		  }
 	  }
 	  
 		private static final int TEAM_PAGE_SIZE = 1000;
