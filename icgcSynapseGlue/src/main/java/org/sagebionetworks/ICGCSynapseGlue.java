@@ -94,7 +94,7 @@ public class ICGCSynapseGlue {
 	        	}
 	        }
 	        if (execute) {
-	        	System.out.println("Done removing "+usersToRemove.size());
+	        	System.out.println("Done removing "+removeCount);
 	        } else {
 	        	System.out.println("Skipping removing "+removeCount+" because EXECUTE=false");
 	        	
@@ -109,12 +109,14 @@ public class ICGCSynapseGlue {
 				String idToAdd = ugh.getOwnerId();
 				if (execute) {
 					synapseClient.addTeamMember(approveTeamId, idToAdd);
-					// now notify them
-					AWSSendEmail.sendEmail(emailFrom, emailTo, null,
+					// now notify them, cc'ing our notification list
+					AWSSendEmail.sendEmail(emailFrom, email+","+emailTo, null,
 							"ICGC-TCGA DREAM Mutation Calling challenge",
 							"Dear "+displayName+",\n"+
 							"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
-							"For further information please see https://www.synapse.org/#!Synapse:syn312572."
+							"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+
+							"Sincerely,\n"+
+							"Synapse Administration"
 							);
 				}
 	        }
