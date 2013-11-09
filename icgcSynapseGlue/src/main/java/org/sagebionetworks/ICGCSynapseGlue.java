@@ -112,6 +112,7 @@ public class ICGCSynapseGlue {
 					// now notify them, cc'ing our notification list
 					AWSSendEmail.sendEmail(emailFrom, email+","+emailTo, null,
 							"ICGC-TCGA DREAM Mutation Calling challenge",
+							// TODO get the carriage returns to work right
 							"Dear "+displayName+",\n"+
 							"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
 							"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+
