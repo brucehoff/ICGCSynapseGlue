@@ -55,7 +55,7 @@
 		<dependency>
 			<groupId>org.sagebionetworks</groupId>
 			<artifactId>synapseJavaClient</artifactId>
-			<version>develop-SNAPSHOT</version>
+			<version>20.0-8-gf35c449</version>
 		</dependency>
 		
 	<dependency>
