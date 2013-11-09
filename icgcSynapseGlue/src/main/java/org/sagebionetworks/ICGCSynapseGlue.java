@@ -37,7 +37,7 @@ import com.sshtools.j2ssh.authentication.PasswordAuthenticationClient;
 import com.sshtools.j2ssh.configuration.ConfigurationLoader;
 
 /**
- * TODO send email notification for any additions, removals or errors
+ *
  */
 public class ICGCSynapseGlue {	
 	  public static void main( String[] args) throws SynapseException, UnsupportedEncodingException {
@@ -49,6 +49,17 @@ public class ICGCSynapseGlue {
 		  String approveTeamId = System.getenv("APPROVE_TEAM_ID");
 		  String emailFrom = System.getenv("SMTP_FROM");
 		  String emailTo = System.getenv("SMTP_TO");
+		  
+		  if (true) {
+			  AWSSendEmail.sendEmail(emailFrom, emailTo, null, "ICGC-TCGA DREAM Mutation Calling challenge",
+						"Dear "+"Foo Bar"+",\n"+
+						"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
+						"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+
+						"Sincerely,\n"+
+						"Synapse Administration"
+);
+			  return;
+		  }
 		  
 		  // get the emails from DACO
 		  List<String> dacoApproved = getDACOEmails();
@@ -112,7 +123,6 @@ public class ICGCSynapseGlue {
 					// now notify them, cc'ing our notification list
 					AWSSendEmail.sendEmail(emailFrom, email+","+emailTo, null,
 							"ICGC-TCGA DREAM Mutation Calling challenge",
-							// TODO get the carriage returns to work right
 							"Dear "+displayName+",\n"+
 							"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
 							"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+

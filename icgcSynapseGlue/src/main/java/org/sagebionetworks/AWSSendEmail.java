@@ -19,7 +19,7 @@ public class AWSSendEmail {
 		  String AWS_ACCESS_KEY = System.getenv("AWS_ACCESS_KEY");
 		  String AWS_SECRET_KEY = System.getenv("AWS_SECRET_KEY");
         Body body = new Body();
-        body.setHtml( new Content( bodyMsg ) );
+        body.setText( new Content( bodyMsg ) );
         Content content = new Content(subject);
         Message message = new Message( content, body );
         SendEmailRequest req = new SendEmailRequest( sender,
