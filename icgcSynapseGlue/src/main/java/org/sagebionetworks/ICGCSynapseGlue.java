@@ -50,17 +50,6 @@ public class ICGCSynapseGlue {
 		  String emailFrom = System.getenv("SMTP_FROM");
 		  String emailTo = System.getenv("SMTP_TO");
 		  
-		  if (true) {
-			  AWSSendEmail.sendEmail(emailFrom, emailTo, null, "ICGC-TCGA DREAM Mutation Calling challenge",
-						"Dear "+"Foo Bar"+",\n"+
-						"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
-						"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+
-						"Sincerely,\n"+
-						"Synapse Administration"
-);
-			  return;
-		  }
-		  
 		  // get the emails from DACO
 		  List<String> dacoApproved = getDACOEmails();
 		  
