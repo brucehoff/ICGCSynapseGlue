@@ -82,7 +82,7 @@ public class ICGCSynapseGlue {
 	        Set<String> usersToRemove = new HashSet<String>(approvedEmails.keySet());
 	        // ... now remove those who are should be in the approved set
 	        usersToRemove.removeAll(signedUpAndApproved);
-	        System.out.println("Emails we need to remove (skipping any admin's) ("+usersToRemove.size()+"):\n"+usersToRemove);	 
+	        System.out.println("Emails we need to remove (minus any admin's, which we never remove) ("+usersToRemove.size()+"):\n"+usersToRemove);	 
 	        
 	        int removeCount = 0;
 	        for (String email : usersToRemove) {
