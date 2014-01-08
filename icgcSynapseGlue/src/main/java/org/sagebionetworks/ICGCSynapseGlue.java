@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
@@ -54,14 +55,13 @@ import com.sshtools.j2ssh.configuration.ConfigurationLoader;
 public class ICGCSynapseGlue {	
 	
     public static void main( String[] args) throws SynapseException, UnsupportedEncodingException, IOException {
-		  Boolean execute = new Boolean(System.getProperty("EXECUTE"));
+		  Boolean execute = new Boolean(getProperty("EXECUTE"));
 		  
-		  String synapseUserName = System.getenv("SYNAPSE_USERNAME");
-		  String synapsePassword = System.getenv("SYNAPSE_PASSWORD");
-		  String signupTeamId = System.getenv("SIGNUP_TEAM_ID");
-		  String approveTeamId = System.getenv("APPROVE_TEAM_ID");
-		  String emailTo = System.getenv("SMTP_TO");
-		  String googleGroupName = System.getenv("APPROVED_GOOGLE_GROUP");
+		  String synapseUserName = getProperty("SYNAPSE_USERNAME");
+		  String synapsePassword = getProperty("SYNAPSE_PASSWORD");
+		  String signupTeamId = getProperty("SIGNUP_TEAM_ID");
+		  String approveTeamId = getProperty("APPROVE_TEAM_ID");
+		  String googleGroupName = getProperty("APPROVED_GOOGLE_GROUP");
 		  
 		  // get the emails from DACO
 		  List<String> dacoApproved = getDACOEmails();
@@ -113,6 +113,8 @@ public class ICGCSynapseGlue {
 	        	
 	        }
 	        
+			String myOwnUserId = synapseClient.getMyProfile().getOwnerId();
+			
 	        for (String email : usersToAdd) {
 	        	TeamMember tm = signedUpEmails.get(email);
 	        	if (tm==null) throw new IllegalStateException();
@@ -130,7 +132,7 @@ public class ICGCSynapseGlue {
 							"Synapse Administration";
 					MessageToUser message = new MessageToUser();
 					message.setSubject("ICGC-TCGA DREAM Mutation Calling challenge");
-					message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{email,emailTo})));
+					message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{email,myOwnUserId})));
 					synapseClient.sendStringMessage(message, messageBody);
 				}
 	        }
@@ -140,34 +142,27 @@ public class ICGCSynapseGlue {
 	        	System.out.println("Skipping adding "+usersToAdd.size()+" because EXECUTE=false");
 	        }
 	        
-		  if (execute && (usersToAdd.size()>0 || removeCount>0)) {
-			  String messageBody = "Added "+usersToAdd.size()+" and removed "+removeCount+" users from Team "+approveTeamId;
-			  MessageToUser message = new MessageToUser();
-			  message.setSubject("GMC Challenge approval");
-			  message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{emailTo})));
-			  synapseClient.sendStringMessage(message, messageBody);
-		  }
-		  
 		  // now sync the approved group with the google group
-    	  String oauthToken = getOAuthAccessToken();
-  
-    	  Map<String, String> members = getGroupMembers(googleGroupName, oauthToken);
-		  Set<String> googleApprovedEmails = members.keySet();
-		  
-	      // to figure out who to add, start with those who should be in the approved set...
+		  // to figure out who to add, start with those who should be in the approved set...
 	      Set<String> usersToAddInGoogle = new HashSet<String>(signedUpAndApprovedByDACO);
 	      // ... now remove all who are already approved in Google
-	      usersToAddInGoogle.removeAll(googleApprovedEmails);
+    	  String oauthToken = getOAuthAccessToken();
+    	  Map<String, String> members = getGroupMembers(googleGroupName, "MEMBER", oauthToken);
+		  Set<String> googleApprovedNonAdminEmails = members.keySet();
+	      usersToAddInGoogle.removeAll(googleApprovedNonAdminEmails);
+	      // skip any owners or managers that are in the set
+	      usersToAddInGoogle.removeAll(getGroupMembers(googleGroupName, "OWNER", oauthToken).keySet());
+	      usersToAddInGoogle.removeAll(getGroupMembers(googleGroupName, "MANAGER", oauthToken).keySet());
 	      System.out.println("Emails we need to add in Google ("+usersToAddInGoogle.size()+"):\n"+usersToAddInGoogle);	
 	      
 	      // add these to the Google group
 	      for (String email : usersToAddInGoogle) {
-	    	  addGroupMember(googleGroupName, email, oauthToken);
+	    	  if (execute) addGroupMember(googleGroupName, email, "MEMBER", oauthToken);
 	      }
 	        
-	      // to figure out who to remove, start with those who are in the approved set...
-	      Set<String> usersToRemoveFromGoogle = new HashSet<String>(googleApprovedEmails);
-	      // ... now remove those who are should be in the approved set
+	      // to figure out who to remove, start with those who are in the Google Group (skipping any owners or managers)...
+	      Set<String> usersToRemoveFromGoogle = new HashSet<String>(googleApprovedNonAdminEmails);
+	      // ... now remove those who are in the approved set
 	      usersToRemoveFromGoogle.removeAll(signedUpAndApprovedByDACO);
 	      System.out.println("Emails we need to remove in Google ("+usersToRemoveFromGoogle.size()+"):\n"+usersToRemoveFromGoogle);
 	      
@@ -175,10 +170,50 @@ public class ICGCSynapseGlue {
 	      for (String email : usersToRemoveFromGoogle) {
 	    	  String memberKey = members.get(email);
 	    	  if (memberKey==null) throw new IllegalStateException(email);
-	     		removeGroupMember(googleGroupName, memberKey, oauthToken);
+	     		if (execute) removeGroupMember(googleGroupName, memberKey, oauthToken);
 	      }
+	      
+		  if (execute && (usersToAdd.size()>0 || removeCount>0 || usersToAddInGoogle.size()>0 || usersToRemoveFromGoogle.size()>0)) {
+			  String messageBody = "Added "+usersToAdd.size()+" and removed "+removeCount+" users from Team "+approveTeamId+"\n";
+			  messageBody += "Added "+usersToAddInGoogle.size()+" and removed "+usersToRemoveFromGoogle.size()+" from "+googleGroupName;
+			  MessageToUser message = new MessageToUser();
+			  message.setSubject("GMC Challenge approval");
+			  message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{myOwnUserId})));
+			  synapseClient.sendStringMessage(message, messageBody);
+		  }
+		  
 	  }
 	  
+	private static Properties properties = null;
+
+	public static void initProperties() {
+		if (properties!=null) return;
+		properties = new Properties();
+		InputStream is = null;
+    	try {
+    		is = ICGCSynapseGlue.class.getClassLoader().getResourceAsStream("global.properties");
+    		properties.load(is);
+    	} catch (IOException e) {
+    		throw new RuntimeException(e);
+    	} finally {
+    		if (is!=null) try {
+    			is.close();
+    		} catch (IOException e) {
+    			throw new RuntimeException(e);
+    		}
+    	}
+   }
+	
+	public static String getProperty(String key) {
+		initProperties();
+		String commandlineOption = System.getProperty(key);
+		if (commandlineOption!=null) return commandlineOption;
+		String embeddedProperty = properties.getProperty(key);
+		if (embeddedProperty!=null) return embeddedProperty;
+		// (could also check environment variables)
+		throw new RuntimeException("Cannot find value for "+key);
+	}	
+
 	  private static final int TEAM_PAGE_SIZE = 1000;
 		
 	  // returns a map from email to TeamMember object
@@ -246,12 +281,12 @@ public class ICGCSynapseGlue {
 	   */
 	  public static List<String> getDACOUserFile() {
 	    try {
-			String hostname = System.getenv("DACO_HOSTNAME");
-			String username = System.getenv("DACO_USERNAME");
-			String password = System.getenv("DACO_PASSWORD");
-			String filename = System.getenv("DACO_FILENAME");
-	        String secretString = System.getenv("DACO_SECRET_KEY");
-	        String ivString =     System.getenv("DACO_IV");
+			String hostname = getProperty("DACO_HOSTNAME");
+			String username = getProperty("DACO_USERNAME");
+			String password = getProperty("DACO_PASSWORD");
+			String filename = getProperty("DACO_FILENAME");
+	        String secretString = getProperty("DACO_SECRET_KEY");
+	        String ivString =     getProperty("DACO_IV");
 			String folder = "//dream-auth/";
 		      
 	        ConfigurationLoader.initialize(false);
@@ -326,12 +361,23 @@ public class ICGCSynapseGlue {
         }
         return data;
     }
+    
+    /**
+     * Uses the client ID, secret and a refresh token, stored as properties, to get an OAuth 2.0 access token
+     * The refresh token must be generated for a suitably enabled project/application under the Google Apps account
+     * to be accessed and the refresh token must be generated using the scope https://www.googleapis.com/auth/admin.directory.group
+     * as per the Directory API.
+     * 
+     * @return an access token to authenticate/authorize requests to the Google API
+     * @throws HttpException
+     * @throws IOException
+     */
     private static String getOAuthAccessToken() throws HttpException, IOException {
     	  HttpClient client = new HttpClient();
     	  PostMethod method = new PostMethod("https://accounts.google.com/o/oauth2/token");
-    	  method.setParameter("client_id", System.getenv("OAUTH_CLIENT_ID"));
-    	  method.setParameter("client_secret", System.getenv("OAUTH_CLIENT_SECRET"));
-    	  method.setParameter("refresh_token", System.getenv("OAUTH_REFRESH_TOKEN"));
+    	  method.setParameter("client_id", getProperty("OAUTH_CLIENT_ID"));
+    	  method.setParameter("client_secret", getProperty("OAUTH_CLIENT_SECRET"));
+    	  method.setParameter("refresh_token", getProperty("OAUTH_REFRESH_TOKEN"));
     	  method.setParameter("grant_type", "refresh_token");
     	  client.executeMethod(method);
     	  String response = method.getResponseBodyAsString();
@@ -339,60 +385,92 @@ public class ICGCSynapseGlue {
     	  return (String)obj.get("access_token");
       }
       
-      // get the members of a google group.  Note, 'groupName' must be URL encoded, like gmcc%40sagebase.org
-      // returns a map from member email address to memberKey
-      private static Map<String, String> getGroupMembers(String groupName, String oauthToken)  throws HttpException, IOException {
+      /**
+       * get the members of a google group
+       * @param groupName must be URL Encoded
+       * @param role filter on results.  One of MEMBER, MANAGER, OWNER
+       * @param oauthToken  the token returned by getOAuthAccessToken()
+       * @return a map from member email address to memberKey
+       * @throws HttpException
+       * @throws IOException
+       */
+      private static Map<String, String> getGroupMembers(String groupName, String role, String oauthToken)  throws HttpException, IOException {
       	  HttpClient client = new HttpClient();
-      	  GetMethod method = new GetMethod("https://www.googleapis.com/admin/directory/v1/groups/"+groupName+"/members");
+      	  String url = "https://www.googleapis.com/admin/directory/v1/groups/"+groupName+"/members?roles="+role;
+      	  GetMethod method = new GetMethod(url);
       	  method.addRequestHeader("Authorization", "Bearer "+oauthToken);
-        	  client.executeMethod(method);
-        	  String response = method.getResponseBodyAsString();
-        	  JSONObject obj=(JSONObject)JSONValue.parse(response);
-        	  JSONArray memberJSON = (JSONArray)obj.get("members");
-        	  Map<String, String> members = new HashMap<String, String>();
-      	  for (int i=0; i<memberJSON.size(); i++) {
+      	  int rc = client.executeMethod(method);
+    	  String response = method.getResponseBodyAsString();
+    	  if (rc!=200) {
+        	  	throw new RuntimeException("URL: "+url+"\n"+
+      			  "Response code: "+rc+"\n"+
+      			  "Response: "+method.getResponseBodyAsString());
+      	  }
+    	  JSONObject obj=(JSONObject)JSONValue.parse(response);
+    	  JSONArray memberJSON = (JSONArray)obj.get("members");
+    	  Map<String, String> members = new HashMap<String, String>();
+      	  for (int i=0; memberJSON!=null && i<memberJSON.size(); i++) {
       		  JSONObject m = (JSONObject)memberJSON.get(i);
-         		  members.put((String)m.get("email"), (String)m.get("id"));
+         	  members.put((String)m.get("email"), (String)m.get("id"));
       	  }
       	  return members;
       }
       
-      // Note:  groupName is to be URL Encoded, but 'email' is not
-      private static int addGroupMember(String groupName, String email, String oauthToken) throws HttpException, IOException {
+      /**
+       * The API seems to have a bug in which a certain user not in the group is mistakenly taken
+       * to be a group member, throwing a 409 error. We suppress throwing exceptions for 409s,
+       * which means this method is idempotent
+       * 
+       * @param groupName must be URL Encoded
+       * @param email the email address of the member to add NOT URL encoded
+       * @param role one of MEMBER, MANAGER, OWNER
+       * @param oauthToken the token returned by getOAuthAccessToken()
+       * @return the HTTP response code
+       * @throws HttpException
+       * @throws IOException
+       */
+      private static void addGroupMember(String groupName, String email, String role, String oauthToken) throws HttpException, IOException {
     	  HttpClient client = new HttpClient();
-  	  String url = "https://www.googleapis.com/admin/directory/v1/groups/"+groupName+"/members";
+    	  String url = "https://www.googleapis.com/admin/directory/v1/groups/"+groupName+"/members";
     	  PostMethod method = new PostMethod(url);
     	  JSONObject requestJSON = new JSONObject();
     	  requestJSON.put("email", email);
+    	  requestJSON.put("role", role);
     	  String requestBody = requestJSON.toString();
     	  method.addRequestHeader("Content-type", "application/json; charset=UTF-8");
     	  method.addRequestHeader("Authorization", "Bearer "+oauthToken);
     	  method.setRequestBody(requestBody);
-        int rc = client.executeMethod(method);
-        if (rc!=200 && rc!=201) {
-            System.out.println("URL: "+url);
-      	  System.out.println("Token: "+oauthToken);
-        	  System.out.println("Body: "+requestBody);
-      	  System.out.println("Response: "+method.getResponseBodyAsString());
-        }
-        return rc;
+    	  int rc = client.executeMethod(method);
+    	  String webDump =  "URL: "+url+"\n"+
+    			  "Request Body: "+requestBody+"\n"+
+    			  "Response code: "+rc+"\n"+
+    			  "Response: "+method.getResponseBodyAsString();
+    	  if (rc==409) {
+    		  System.out.println(webDump);
+    	  } else if (rc!=200 && rc!=201) {
+      	  	throw new RuntimeException(webDump);
+    	  }
       }
       
-      // note, groupName must be URL Encoded
-      // 'memberKey' must be the member ID or the member's email address, URL Encoded
-      private static int removeGroupMember(String groupName, String memberKey, String oauthToken) throws HttpException, IOException {
+      /**
+       * Remove a member from a google group
+       * @param groupName must be URL Encoded
+       * @param memberKey must be the member ID or the member's email address, URL Encoded
+       * @param oauthToken the token returned by getOAuthAccessToken()
+       * @throws HttpException
+       * @throws IOException
+       */
+      private static void removeGroupMember(String groupName, String memberKey, String oauthToken) throws HttpException, IOException {
       	HttpClient client = new HttpClient();
       	String url = "https://www.googleapis.com/admin/directory/v1/groups/"+groupName+"/members/"+memberKey;
       	DeleteMethod method = new DeleteMethod(url);
       	method.addRequestHeader("Authorization", "Bearer "+oauthToken);
           int rc = client.executeMethod(method);
           if (rc!=200 && rc!=204) {
-            System.out.println("URL: "+url);
-        	  System.out.println("Token: "+oauthToken);
-        	  System.out.println("Body: "+method);
-        	  System.out.println("Response: "+method.getResponseBodyAsString());
+        	  throw new RuntimeException("URL: "+url+"\n"+
+        			  "Response code: "+rc+"\n"+
+        			  "Response: "+method.getResponseBodyAsString());
           }
-          return rc;
       }
       
 
