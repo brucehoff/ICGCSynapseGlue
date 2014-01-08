@@ -370,7 +370,9 @@ public class ICGCSynapseGlue {
      * Uses the client ID, secret and a refresh token, stored as properties, to get an OAuth 2.0 access token
      * The refresh token must be generated for a suitably enabled project/application under the Google Apps account
      * to be accessed and the refresh token must be generated using the scope https://www.googleapis.com/auth/admin.directory.group
-     * as per the Directory API.
+     * as per the Directory API.  To generate the refresh token use the oauth2.py utility:
+     * http://code.google.com/p/google-mail-oauth2-tools/wiki/OAuth2DotPyRunThrough
+     * python oauth2.py --client_id=<<clientid>> --client_secret=<<clientSecret>> --generate_oauth2_token --scope=https://www.googleapis.com/auth/admin.directory.group
      * 
      * @return an access token to authenticate/authorize requests to the Google API
      * @throws HttpException
