@@ -45,25 +45,6 @@
 		</repository>
 	</repositories>
   
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.4</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <addClasspath>true</addClasspath>
-               <classpathPrefix>${M2_REPOSITORY_ROOT}/.m2/repository</classpathPrefix>
-     		  <classpathLayoutType>repository</classpathLayoutType>
-              <mainClass>org.sagebionetworks.ICGCSynapseGlue</mainClass>
-            </manifest>
-          </archive>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 	<dependencies>
 		<dependency>
 			<groupId>sshtools</groupId>
@@ -74,14 +55,14 @@
 		<dependency>
 			<groupId>org.sagebionetworks</groupId>
 			<artifactId>synapseJavaClient</artifactId>
-			<version>20.0-8-gf35c449</version>
+			<version>26.0</version>
 		</dependency>
 		
-	<dependency>
-	    <groupId>com.amazonaws</groupId>
-	    <artifactId>aws-java-sdk</artifactId>
-	    <version>1.1.4</version>
-	</dependency>
+		<dependency>
+			<groupId>commons-httpclient</groupId>
+			<artifactId>commons-httpclient</artifactId>
+			<version>3.1</version>
+		</dependency>
 		
       <dependency>
       	<groupId>junit</groupId>
@@ -89,5 +70,13 @@
       	<scope>test</scope>
        <version>4.11</version>
     </dependency>
-  </dependencies>
+
+     <dependency>
+		<groupId>com.googlecode.json-simple</groupId>
+		<artifactId>json-simple</artifactId>
+		<version>1.1</version>
+	 </dependency>
+     
+    
+     </dependencies>
 </project>
