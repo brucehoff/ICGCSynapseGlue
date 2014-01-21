@@ -103,7 +103,11 @@ public class ICGCSynapseGlue {
 	        	if (memberToRemove==null) throw new IllegalStateException();
 	        	if (!memberToRemove.getIsAdmin()) {
 	        		removeCount++;
-	        		if (execute) synapseClient.removeTeamMember(approveTeamId, memberToRemove.getMember().getOwnerId());
+	        		if (execute) {
+	        			synapseClient.removeTeamMember(approveTeamId, memberToRemove.getMember().getOwnerId());
+	        		} else {
+	        			System.out.println("when EXECUTE=true, will remove member "+memberToRemove.getMember().getOwnerId()+ " from Team "+approveTeamId);
+	        		}
 	        	}
 	        }
 	        if (execute) {
@@ -132,8 +136,10 @@ public class ICGCSynapseGlue {
 							"Synapse Administration";
 					MessageToUser message = new MessageToUser();
 					message.setSubject("ICGC-TCGA DREAM Mutation Calling challenge");
-					message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{email,myOwnUserId})));
+					message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{idToAdd,myOwnUserId})));
 					synapseClient.sendStringMessage(message, messageBody);
+				} else {
+					System.out.println("when EXECUTE=true will add user "+idToAdd+" ("+displayName+") to team "+approveTeamId);
 				}
 	        }
 	        if (execute) {
@@ -161,6 +167,8 @@ public class ICGCSynapseGlue {
 	    	  if (execute) {
 	    		  boolean success = addGroupMember(googleGroupName, email, "MEMBER", oauthToken);
 	    		  if (success) usersAddedToGoogleGroup++;
+	    	  } else {
+	    		  System.out.println("when EXECUTE=true will add "+email+" to google-group "+googleGroupName);
 	    	  }
 	      }
 	        
@@ -174,7 +182,11 @@ public class ICGCSynapseGlue {
 	      for (String email : usersToRemoveFromGoogle) {
 	    	  String memberKey = members.get(email);
 	    	  if (memberKey==null) throw new IllegalStateException(email);
-	     		if (execute) removeGroupMember(googleGroupName, memberKey, oauthToken);
+	     		if (execute) {
+	     			removeGroupMember(googleGroupName, memberKey, oauthToken);
+	     		} else {
+	     			System.out.println("when EXECUTE=true will remove "+memberKey+" from google-group "+googleGroupName);
+	     		}
 	      }
 	      
 		  if (execute && (usersToAdd.size()>0 || removeCount>0 || usersAddedToGoogleGroup>0 || usersToRemoveFromGoogle.size()>0)) {
@@ -228,8 +240,9 @@ public class ICGCSynapseGlue {
 	        Map<String,TeamMember> emails = new HashMap<String,TeamMember>();
 	        for (TeamMember m : members.getResults()) {
 	        	UserProfile up = synapseClient.getUserProfile(m.getMember().getOwnerId());
-	        	
-	        	emails.put(up.getEmail(), m);
+	        	List<String> upEmails = up.getEmails();
+	        	if (upEmails.size()<1) throw new IllegalStateException("No email address for "+m.getMember().getOwnerId());
+	        	emails.put(upEmails.get(0), m);
 	        }
 		  return emails;
 	  }
