@@ -124,12 +124,12 @@ public class ICGCSynapseGlue {
 	        	if (tm==null) throw new IllegalStateException();
 	        	
 				UserGroupHeader ugh = tm.getMember();
-				String displayName = ugh.getDisplayName();
+				String userName = ugh.getUserName();
 				String idToAdd = ugh.getOwnerId();
 				if (execute) {
 					synapseClient.addTeamMember(approveTeamId, idToAdd);
 					// now notify them, cc'ing our notification list
-					String messageBody = "Dear "+displayName+",\n"+
+					String messageBody = "Dear "+userName+",\n"+
 							"You have been approved for participation in the ICGC-TCGA DREAM Mutation Calling challenge. "+
 							"For further information please see https://www.synapse.org/#!Synapse:syn312572.\n"+
 							"Sincerely,\n"+
@@ -139,7 +139,7 @@ public class ICGCSynapseGlue {
 					message.setRecipients(new HashSet<String>(Arrays.asList(new String[]{idToAdd,myOwnUserId})));
 					synapseClient.sendStringMessage(message, messageBody);
 				} else {
-					System.out.println("when EXECUTE=true will add user "+idToAdd+" ("+displayName+") to team "+approveTeamId);
+					System.out.println("when EXECUTE=true will add user "+idToAdd+" ("+userName+") to team "+approveTeamId);
 				}
 	        }
 	        if (execute) {
