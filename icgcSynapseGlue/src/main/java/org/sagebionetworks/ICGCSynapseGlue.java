@@ -95,7 +95,7 @@ public class ICGCSynapseGlue {
 	        Set<String> usersToRemove = new HashSet<String>(approvedEmails.keySet());
 	        // ... now remove those who are should be in the approved set
 	        usersToRemove.removeAll(signedUpAndApprovedByDACO);
-	        System.out.println("Emails we need to remove in Synapse (minus any team admin's, which we never remove) ("+usersToRemove.size()+"):\n"+usersToRemove);	 
+	        System.out.println("Emails we need to remove in Synapse (plus any team admin's, which we never remove) ("+usersToRemove.size()+"):\n"+usersToRemove);	 
 	        
 	        int removeCount = 0;
 	        for (String email : usersToRemove) {
@@ -242,7 +242,7 @@ public class ICGCSynapseGlue {
 	        	UserProfile up = synapseClient.getUserProfile(m.getMember().getOwnerId());
 	        	List<String> upEmails = up.getEmails();
 	        	if (upEmails.size()<1) throw new IllegalStateException("No email address for "+m.getMember().getOwnerId());
-	        	emails.put(upEmails.get(0), m);
+	        	emails.put(upEmails.get(0).toLowerCase(), m);
 	        }
 		  return emails;
 	  }
@@ -271,8 +271,8 @@ public class ICGCSynapseGlue {
 	        	String[] fields = line.split(",");
 	        	if (fields.length!=3) throw new RuntimeException("Unexpected row: "+line);
 	        	// user name,openid,email so skip first field, take third field, and take 2nd field only if is email
-	        	if (openIdIsEmail(fields[1])) emails.add(fields[1]);
-	        	emails.add(fields[2]);
+	        	if (openIdIsEmail(fields[1])) emails.add(fields[1].toLowerCase());
+	        	emails.add(fields[2].toLowerCase());
 	        }
 		  return emails;
 	  }
@@ -430,7 +430,7 @@ public class ICGCSynapseGlue {
     	  Map<String, String> members = new HashMap<String, String>();
       	  for (int i=0; memberJSON!=null && i<memberJSON.size(); i++) {
       		  JSONObject m = (JSONObject)memberJSON.get(i);
-         	  members.put((String)m.get("email"), (String)m.get("id"));
+         	  members.put(((String)m.get("email")).toLowerCase(), (String)m.get("id"));
       	  }
       	  return members;
       }
