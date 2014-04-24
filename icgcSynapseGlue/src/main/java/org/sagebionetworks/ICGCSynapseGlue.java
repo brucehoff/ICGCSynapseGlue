@@ -288,6 +288,8 @@ public class ICGCSynapseGlue {
 	    	if (openId.indexOf("https://")>=0) return false;
 	    	if (openId.endsWith(".myopenid.com")) return false;
 	    	if (openId.endsWith(".verisignlabs.com")) return false;
+	    	if (openId.indexOf(' ')>=0) return false;
+	    	if (openId.indexOf('.')<0) return false;
 	    	throw new IllegalArgumentException("Unrecognized OpenID: "+openId);
 	    }
 	    
